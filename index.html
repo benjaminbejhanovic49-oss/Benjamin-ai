@@ -230,10 +230,13 @@ async function sendMessage() {
     const aiMessage = document.createElement("div");
     aiMessage.className = "message ai";
 
-    const answer =
-      data.choices?.[0]?.message?.content ||
-      data.error ||
-      "I couldn't get a response from the AI.";
+    cconst answer =
+  data.answer ||
+  data.error?.message ||
+  data.error ||
+  "I couldn't get a response from the AI.";
+    
+  
 
     aiMessage.textContent = answer;
 
