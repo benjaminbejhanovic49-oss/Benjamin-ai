@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <title>Benjamin AI</title>
 
   <style>
@@ -74,7 +73,7 @@
 
     .input-area {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       padding: 10px 0;
       background: #08080c;
     }
@@ -93,23 +92,30 @@
       outline: none;
     }
 
-    textarea:focus {
-      border-color: #666;
-    }
-
     button {
-      min-width: 70px;
       border: 0;
       border-radius: 18px;
       background: white;
       color: black;
       font-size: 15px;
       font-weight: 700;
-      padding: 0 18px;
+      padding: 0 15px;
+      min-width: 55px;
     }
 
     button:disabled {
       opacity: 0.5;
+    }
+
+    #mic {
+      background: #25252c;
+      color: white;
+      font-size: 20px;
+      min-width: 55px;
+    }
+
+    #mic.listening {
+      background: #555;
     }
   </style>
 </head>
@@ -131,22 +137,22 @@
     <div class="message ai">
       Hello. I'm Benjamin AI.
 
-      I'm ready. What do you need?
+      Press 🎙️ and talk to me.
     </div>
 
   </div>
 
   <div class="input-area">
 
+    <button id="mic" type="button">🎙️</button>
+
     <textarea
       id="input"
-      placeholder="Talk to Benjamin AI..."
+      placeholder="Talk to Benjamin..."
       rows="1"
     ></textarea>
 
-    <button id="send">
-      Send
-    </button>
+    <button id="send" type="button">Send</button>
 
   </div>
 
@@ -154,18 +160,151 @@
 
 <script>
 
-const API_URL = "https://benjamin-ai-api.vercel.app/api/chat";
+const API_URL =
+  "https://benjamin-ai-api.vercel.app/api/chat";
 
-const input = document.getElementById("input");
-const send = document.getElementById("send");
-const chat = document.getElementById("chat");
-const status = document.getElementById("status");
+const input =
+  document.getElementById("input");
+
+const send =
+  document.getElementById("send");
+
+const mic =
+  document.getElementById("mic");
+
+const chat =
+  document.getElementById("chat");
+
+const status =
+  document.getElementById("status");
+
+
+// ==================================================
+// VOICE INPUT
+// ==================================================
+
+const SpeechRecognition =
+  window.SpeechRecognition ||
+  window.webkitSpeechRecognition;
+
+let recognition = null;
+
+let listening = false;
+
+if (SpeechRecognition) {
+
+  recognition = new SpeechRecognition();
+
+  recognition.continuous = false;
+
+  recognition.interimResults = false;
+
+  recognition.maxAlternatives = 1;
+
+  recognition.lang = "en-US";
+
+
+  recognition.onstart = function() {
+
+    listening = true;
+
+    mic.classList.add("listening");
+
+    mic.textContent = "🔴";
+
+    status.textContent =
+      "Benjamin AI • Listening...";
+
+  };
+
+
+  recognition.onresult = function(event) {
+
+    const text =
+      event.results[0][0].transcript;
+
+    input.value = text;
+
+    status.textContent =
+      "Benjamin AI • Ready";
+
+    sendMessage();
+
+  };
+
+
+  recognition.onerror = function(event) {
+
+    listening = false;
+
+    mic.classList.remove("listening");
+
+    mic.textContent = "🎙️";
+
+    status.textContent =
+      "Microphone error: " + event.error;
+
+  };
+
+
+  recognition.onend = function() {
+
+    listening = false;
+
+    mic.classList.remove("listening");
+
+    mic.textContent = "🎙️";
+
+    if (!status.textContent.includes("error")) {
+
+      status.textContent =
+        "Benjamin AI • Online";
+
+    }
+
+  };
+
+
+  mic.addEventListener("click", function() {
+
+    if (listening) {
+
+      recognition.stop();
+
+      return;
+
+    }
+
+    recognition.start();
+
+  });
+
+} else {
+
+  mic.addEventListener("click", function() {
+
+    alert(
+      "Voice recognition is not supported by this browser."
+    );
+
+  });
+
+}
+
+
+// ==================================================
+// SEND MESSAGE
+// ==================================================
 
 send.addEventListener("click", sendMessage);
 
+
 input.addEventListener("keydown", function(event) {
 
-  if (event.key === "Enter" && !event.shiftKey) {
+  if (
+    event.key === "Enter" &&
+    !event.shiftKey
+  ) {
 
     event.preventDefault();
 
@@ -178,145 +317,270 @@ input.addEventListener("keydown", function(event) {
 
 async function sendMessage() {
 
-  const message = input.value.trim();
+  const message =
+    input.value.trim();
 
   if (!message) {
+
     return;
+
   }
 
-  // Show user message
 
-  const user = document.createElement("div");
+  // USER MESSAGE
 
-  user.className = "message user";
+  const user =
+    document.createElement("div");
 
-  user.textContent = message;
+  user.className =
+    "message user";
+
+  user.textContent =
+    message;
 
   chat.appendChild(user);
 
-  input.value = "";
 
-  // Disable button
+  input.value = "";
 
   send.disabled = true;
 
-  status.textContent = "Benjamin AI • Thinking...";
+  mic.disabled = true;
 
 
-  // Thinking message
+  // THINKING
 
-  const thinking = document.createElement("div");
+  const thinking =
+    document.createElement("div");
 
-  thinking.className = "message ai";
+  thinking.className =
+    "message ai";
 
-  thinking.textContent = "🧠 Thinking...";
+  thinking.textContent =
+    "🧠 Thinking...";
 
   chat.appendChild(thinking);
 
-  chat.scrollTop = chat.scrollHeight;
+  chat.scrollTop =
+    chat.scrollHeight;
+
+
+  status.textContent =
+    "Benjamin AI • Thinking...";
 
 
   try {
 
-    const response = await fetch(API_URL, {
+    const response =
+      await fetch(API_URL, {
 
-      method: "POST",
+        method: "POST",
 
-      headers: {
-        "Content-Type": "application/json"
-      },
+        headers: {
+          "Content-Type": "application/json"
+        },
 
-      body: JSON.stringify({
+        body: JSON.stringify({
 
-        messages: [
+          messages: [
 
-          {
-            role: "system",
-            content:
-              "You are Benjamin AI, a personal AI assistant inspired by JARVIS. You are helpful, intelligent, concise and practical. Speak naturally. Help the user accomplish tasks instead of only explaining things."
-          },
+            {
+              role: "system",
 
-          {
-            role: "user",
-            content: message
-          }
+              content:
+                "You are Benjamin AI, a personal AI assistant inspired by JARVIS. Speak naturally, be intelligent, helpful and concise. Give practical answers."
+            },
 
-        ]
+            {
+              role: "user",
 
-      })
+              content: message
 
-    });
+            }
+
+          ]
+
+        })
+
+      });
 
 
-    const data = await response.json();
+    const data =
+      await response.json();
+
 
     thinking.remove();
 
 
-    const answer = document.createElement("div");
+    const answer =
+      document.createElement("div");
 
-    answer.className = "message ai";
+    answer.className =
+      "message ai";
+
+
+    let text = "";
 
 
     if (data.answer) {
 
-      answer.textContent = data.answer;
+      text = data.answer;
 
     }
 
     else if (data.error) {
 
-      if (typeof data.error === "string") {
-
-        answer.textContent =
-          "AI Error: " + data.error;
-
-      }
-
-      else {
-
-        answer.textContent =
-          "AI Error: " +
-          (data.error.message ||
-           JSON.stringify(data.error));
-
-      }
+      text =
+        typeof data.error === "string"
+          ? data.error
+          : (
+              data.error.message ||
+              JSON.stringify(data.error)
+            );
 
     }
 
     else {
 
-      answer.textContent =
-        "The AI returned no answer.";
+      text =
+        "I didn't receive an answer.";
 
     }
 
 
+    answer.textContent =
+      text;
+
     chat.appendChild(answer);
 
-    chat.scrollTop = chat.scrollHeight;
+    chat.scrollTop =
+      chat.scrollHeight;
+
+
+    // ==================================================
+    // SPOKEN REPLY
+    // ==================================================
+
+    speak(text);
 
 
     status.textContent =
-      "Personal AI Agent • Online";
+      "Benjamin AI • Online";
 
   }
 
   catch (error) {
 
     thinking.textContent =
-      "Connection error.\n\n" +
+      "Connection error: " +
       error.message;
 
     status.textContent =
-      "Personal AI Agent • Connection Error";
+      "Benjamin AI • Error";
 
   }
 
 
   send.disabled = false;
 
+  mic.disabled = false;
+
   input.focus();
+
+}
+
+
+// ==================================================
+// TEXT TO SPEECH
+// ==================================================
+
+function speak(text) {
+
+  if (
+    !("speechSynthesis" in window)
+  ) {
+
+    return;
+
+  }
+
+
+  speechSynthesis.cancel();
+
+
+  const cleanText =
+    text
+      .replace(/[*#_`]/g, "")
+      .replace(/\n+/g, " ")
+      .trim();
+
+
+  const utterance =
+    new SpeechSynthesisUtterance(
+      cleanText
+    );
+
+
+  utterance.lang =
+    "en-US";
+
+  utterance.rate =
+    1.0;
+
+  utterance.pitch =
+    0.9;
+
+  utterance.volume =
+    1.0;
+
+
+  const voices =
+    speechSynthesis.getVoices();
+
+
+  const preferredVoice =
+    voices.find(function(voice) {
+
+      return (
+        voice.lang.startsWith("en") &&
+        (
+          voice.name.includes("Siri") ||
+          voice.name.includes("Alex") ||
+          voice.name.includes("Daniel")
+        )
+      );
+
+    });
+
+
+  if (preferredVoice) {
+
+    utterance.voice =
+      preferredVoice;
+
+  }
+
+
+  speechSynthesis.speak(
+    utterance
+  );
+
+}
+
+
+// Load voices when iPhone makes them available
+
+if (
+  "speechSynthesis" in window &&
+  speechSynthesis.onvoiceschanged !== undefined
+) {
+
+  speechSynthesis.onvoiceschanged =
+    function() {
+
+      speechSynthesis.getVoices();
+
+    };
 
 }
 
